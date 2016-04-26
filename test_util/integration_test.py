@@ -5,6 +5,10 @@ import os
 import urllib.parse
 import uuid
 
+from contextlib import closing
+
+from ssh import ssh_tunnel
+
 import boto3
 import botocore.exceptions
 import bs4
@@ -1340,3 +1344,55 @@ sleep 3600
     r_data['Properties']['clusterId'] = ''
 
     assert r_data == exp_data
+
+
+class AgentManipulator:
+
+    def __init__(self, cluster, ssh_user, key_path):
+        self._cluster = cluster
+
+    def _run(self, cmd):
+        with closing(ssh_tunnel.SSHTunnel(self.ssh_user, self.key_path, self._cluster.host)) as tunnel:
+            tunnel.remote_cmd(cmd)
+
+    def _stop_mesos_agent(self):
+        self._run('systemctl stop dcos-mesos-slave')
+
+    def _start_mesos_agent(self, clear_state, restart=True):
+        if clear_state:
+            self._clear_agent_state()
+        self._run('systemctl start dcos-mesos-slave')
+
+    def _clear_agent_state(self):
+        # TODO: check this path
+        self._run('rm -rf /var/lib/mesos/slave')
+
+    def _run_volume_discovery(self):
+        self._run('rm /var/lib/dcos/mesos-resources')
+        self._run('systemctl start dcos-vol-discovery-priv-agent')
+
+    def _make_local_volume(self, size_mb, image_file):
+        self._run('dd of={} if=/dev/null blocksize={}'.format(image_file, size_mb))
+
+    def _attach_loop_back(self, mount_point, image_file):
+        loop_device = self._run('losetup -f')
+        cmds = (
+            '/usr/bin/mkdir -p {}'.format(mount_point),
+            '/usr/sbin/losetup {} {}'.format(loop_device, image_file),
+            '/usr/sbin/mkfs -t ext4 {}'.format(loop_device),
+            '/usr/bin/mount {} {}'.format(loop_device, mount_point),
+        )
+        map(self._run, cmds)
+
+
+def test_add_volume_noop(cluster):
+    agentm = AgentManipulator(cluster, ssh_user, ssh_key_path)
+    agentm._stop_mesos_agent()
+    for i in range(2):
+        img = '/root/{}.img'.format(i)
+        mount_point = '/dcos/volume{}'.format(i)
+        agentm._make_local_volume(200, img)
+        agentm._attach_loop_back(mount_point, img)
+    agentm._run_volume_discovery()
+    agentm._start_mesos_agent(clear_state=False)
+    # assert on mounted resources

@@ -6,8 +6,6 @@ import shlex
 import urllib.parse
 import uuid
 
-from contextlib import closing
-
 from ssh import ssh_tunnel
 
 import boto3
@@ -49,7 +47,10 @@ def cluster():
                    public_masters=os.environ['PUBLIC_MASTER_HOSTS'].split(','),
                    slaves=os.environ['SLAVE_HOSTS'].split(','),
                    registry=os.environ['REGISTRY_HOST'],
-                   dns_search_set=os.environ['DNS_SEARCH'])
+                   dns_search_set=os.environ['DNS_SEARCH'],
+                   ssh_user=os.environ['SSH_USER'],
+                   ssh_key_path=os.environ['SSH_KEY_PATH']
+                  )
 
 
 @pytest.fixture(scope='module')
@@ -1351,6 +1352,8 @@ class AgentManipulator:
 
     def __init__(self, cluster, ssh_user, key_path):
         self._cluster = cluster
+        self._ssh_user = cluster.ssh_user
+        self._ssh_key_path = cluster.ssh_key_path
 
     def _multi_run(self, cmds):
         with closing(ssh_tunnel.SSHTunnel(

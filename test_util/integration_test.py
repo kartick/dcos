@@ -6,6 +6,8 @@ import shlex
 import urllib.parse
 import uuid
 
+from contextlib import closing
+
 from ssh import ssh_tunnel
 
 import boto3
@@ -1393,7 +1395,7 @@ class AgentManipulator:
             'systemctl start dcos-vol-discovery-priv-agent'
         ))
 
-    def _local_volume(self, size_mb, image_file):
+    def _make_local_volume(self, size_mb, image_file):
         return self._run('dd of={} if=/dev/null blocksize={}'.format(image_file, size_mb))
 
     def _attach_loop_back(self, mount_point, image_file):

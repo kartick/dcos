@@ -48,6 +48,7 @@ setup(
         'console_scripts': [
             'release=release:main',
             'ccm-deploy-test=test_util.test_installer_ccm:main',
+            'test_runner=test_util.test_runner:main',
             'pkgpanda=pkgpanda.cli:main',
             'mkpanda=pkgpanda.build.cli:main',
         ],

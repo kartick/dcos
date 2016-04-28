@@ -48,7 +48,10 @@ def cluster():
                    public_masters=os.environ['PUBLIC_MASTER_HOSTS'].split(','),
                    slaves=os.environ['SLAVE_HOSTS'].split(','),
                    registry=os.environ['REGISTRY_HOST'],
-                   dns_search_set=os.environ['DNS_SEARCH'])
+                   dns_search_set=os.environ['DNS_SEARCH'],
+                   ssh_user=os.environ['SSH_USER'],
+                   ssh_key_path=os.environ['SSH_KEY_PATH']
+                  )
 
 
 @pytest.fixture(scope='module')
@@ -1350,9 +1353,12 @@ class AgentManipulator:
 
     def __init__(self, cluster, ssh_user, key_path):
         self._cluster = cluster
+        self._ssh_user = cluster.ssh_user
+        self._ssh_key_path = cluster.ssh_key_path
 
     def _run(self, cmd):
-        with closing(ssh_tunnel.SSHTunnel(self.ssh_user, self.key_path, self._cluster.host)) as tunnel:
+        # Open ssh tunnel to the first slave
+        with closing(ssh_tunnel.SSHTunnel(self._ssh_user, self._ssh_key_path, self._cluster.slaves[0])) as tunnel:
             tunnel.remote_cmd(cmd)
 
     def _stop_mesos_agent(self):
@@ -1386,7 +1392,7 @@ class AgentManipulator:
 
 
 def test_add_volume_noop(cluster):
-    agentm = AgentManipulator(cluster, ssh_user, ssh_key_path)
+    agentm = AgentManipulator(cluster)
     agentm._stop_mesos_agent()
     for i in range(2):
         img = '/root/{}.img'.format(i)

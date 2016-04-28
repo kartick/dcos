@@ -1352,10 +1352,25 @@ class AgentManipulator:
     def __init__(self, cluster, ssh_user, key_path):
         self._cluster = cluster
 
+    def _multi_run(self, cmds):
+        with closing(ssh_tunnel.SSHTunnel(
+            self._cluster.ssh_user,
+            self._cluster._ssh_key_path,
+            self._cluster.slaves[0])) as ssh_runner:
+            for cmd in cmds:
+                ssh_runner.remote_cmd(self.list_or_make(cmd))
+
     def _run(self, cmd):
         return ssh_tunnel.run_ssh_cmd(
-            cmd if isinstance(cmd, list) else shlex.split(cmd)
+            self._cluster.ssh_user,
+            self._cluster._ssh_key_path,
+            self._cluster.slaves[0],
+            self.list_or_make(cmd)
         )
+
+    @staticmethod
+    def list_or_make(v, split_fn=shlex.split):
+        return v if isinstance(v, list) else split_fn(v)
 
     def _stop_mesos_agent(self):
         self._run('systemctl stop dcos-mesos-slave')
@@ -1370,11 +1385,13 @@ class AgentManipulator:
         self._run('rm -rf /var/lib/mesos/slave')
 
     def _run_volume_discovery(self):
-        self._run('rm /var/lib/dcos/mesos-resources')
-        self._run('systemctl start dcos-vol-discovery-priv-agent')
+        self._multi_run((
+            'rm /var/lib/dcos/mesos-resources',
+            'systemctl start dcos-vol-discovery-priv-agent'
+        ))
 
-    def _make_local_volume(self, size_mb, image_file):
-        self._run('dd of={} if=/dev/null blocksize={}'.format(image_file, size_mb))
+    def _local_volume(self, size_mb, image_file):
+        return 'dd of={} if=/dev/null blocksize={}'.format(image_file, size_mb)
 
     def _attach_loop_back(self, mount_point, image_file):
         loop_device = self._run('losetup -f')
@@ -1384,11 +1401,11 @@ class AgentManipulator:
             '/usr/sbin/mkfs -t ext4 {}'.format(loop_device),
             '/usr/bin/mount {} {}'.format(loop_device, mount_point),
         )
-        map(self._run, cmds)
+        self._multi_run(cmds)
 
 
 def test_add_volume_noop(cluster):
-    agentm = AgentManipulator(cluster, ssh_user, ssh_key_path)
+    agentm = AgentManipulator(cluster)
     agentm._stop_mesos_agent()
     for i in range(2):
         img = '/root/{}.img'.format(i)

@@ -2,10 +2,9 @@ import collections
 import json
 import logging
 import os
+import shlex
 import urllib.parse
 import uuid
-
-from contextlib import closing
 
 from ssh import ssh_tunnel
 
@@ -1357,9 +1356,9 @@ class AgentManipulator:
         self._ssh_key_path = cluster.ssh_key_path
 
     def _run(self, cmd):
-        # Open ssh tunnel to the first slave
-        with closing(ssh_tunnel.SSHTunnel(self._ssh_user, self._ssh_key_path, self._cluster.slaves[0])) as tunnel:
-            tunnel.remote_cmd(cmd)
+        return ssh_tunnel.run_ssh_cmd(
+            cmd if isinstance(cmd, list) else shlex.split(cmd)
+        )
 
     def _stop_mesos_agent(self):
         self._run('systemctl stop dcos-mesos-slave')

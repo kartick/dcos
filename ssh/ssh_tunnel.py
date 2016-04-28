@@ -3,8 +3,8 @@ Module for creating persistent SSH connections for use with synchronous
 commands. Typically, tunnels should be invoked with a context manager to
 ensure proper cleanup. E.G.:
 with contextlib.closing(SSHTunnel(*args, **kwargs)) as tunnel:
-    ssh.write_to_remote('/usr/local/usrpath/testfile.txt', 'test_file.txt')
-    ssh.remote_cmd(['cat', 'test_file.txt'])
+    tunnel.write_to_remote('/usr/local/usrpath/testfile.txt', 'test_file.txt')
+    tunnel.remote_cmd(['cat', 'test_file.txt'])
 """
 import logging
 from contextlib import closing

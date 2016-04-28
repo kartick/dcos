@@ -321,6 +321,10 @@ def test_tags_async(sshd_manager, loop):
 
 
 def tunnel_write_and_run(remote_write_fn, remote_cmd_fn):
+    """write random data across the tunnel with a write function, then run a
+    remote command to read that same random data. Finally assert the returned
+    random data is the same
+    """
     with tempfile.NamedTemporaryFile() as tmp_fh:
         rando_text = str(uuid.uuid4())
         tmp_fh.write(rando_text.encode())

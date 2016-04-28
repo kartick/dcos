@@ -1361,7 +1361,7 @@ class AgentManipulator:
             self._cluster._ssh_key_path,
             self._cluster.slaves[0])) as ssh_runner:
             for cmd in cmds:
-                ssh_runner.remote_cmd(self.list_or_make(cmd))
+                yield ssh_runner.remote_cmd(self.list_or_make(cmd))
 
     def _run(self, cmd):
         return ssh_tunnel.run_ssh_cmd(
@@ -1388,13 +1388,13 @@ class AgentManipulator:
         self._run('rm -rf /var/lib/mesos/slave')
 
     def _run_volume_discovery(self):
-        self._multi_run((
+        return self._multi_run((
             'rm /var/lib/dcos/mesos-resources',
             'systemctl start dcos-vol-discovery-priv-agent'
         ))
 
     def _local_volume(self, size_mb, image_file):
-        return 'dd of={} if=/dev/null blocksize={}'.format(image_file, size_mb)
+        return self._run('dd of={} if=/dev/null blocksize={}'.format(image_file, size_mb))
 
     def _attach_loop_back(self, mount_point, image_file):
         loop_device = self._run('losetup -f')
@@ -1404,7 +1404,7 @@ class AgentManipulator:
             '/usr/sbin/mkfs -t ext4 {}'.format(loop_device),
             '/usr/bin/mount {} {}'.format(loop_device, mount_point),
         )
-        self._multi_run(cmds)
+        return self._multi_run(cmds)
 
 
 def test_add_volume_noop(cluster):

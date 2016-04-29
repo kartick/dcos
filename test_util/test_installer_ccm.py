@@ -57,6 +57,11 @@ import test_util.installer_api_test
 from ssh.ssh_runner import MultiRunner
 from ssh.utils import CommandChain, SyncCmdDelegate
 
+# hack
+import tempfile
+import shutil
+from subprocess import check_call
+
 AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID', '')
 AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY', '')
 
@@ -197,6 +202,15 @@ def test_setup(ssh_runner, registry, remote_dir, use_zk_backend):
     test_setup_chain.add_execute([
         'cd', remote('py.test'), '&&', 'docker', 'build', '-t', 'py.test', '.'])
     test_setup_chain.add_execute(['rm', '-rf', remote('py.test')])
+
+    # <hack>
+    temp_dir = tempfile.mkdtemp()
+    shutil.copy(pytest_docker, temp_dir)
+    shutil.copy(test_script, temp_dir)
+    check_call([
+        'cd', temp_dir, '&&', 'sudo', 'docker', 'build', '-t', 'py.test:noop', '.'])
+    shutil.rmtree(temp_dir)
+    # </hack>
 
     check_results(run_loop(ssh_runner, test_setup_chain))
 

@@ -7,6 +7,8 @@ import shlex
 import urllib.parse
 import uuid
 
+from contextlib import closing
+
 from ssh import ssh_tunnel
 
 import boto3
@@ -1395,7 +1397,7 @@ class AgentManipulator:
         )
         return self._multi_run(steps[:1] if delete_only else steps)
 
-    def _local_volume(self, size_mb, image_file):
+    def _make_local_volume(self, size_mb, image_file):
         return self._run('dd of={} if=/dev/null blocksize={}'.format(image_file, size_mb))
 
     @contextlib.contextmanager
